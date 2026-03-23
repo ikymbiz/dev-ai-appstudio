@@ -1,1 +1,384 @@
-<h1>Hello World</h1>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AI Web Studio</title>
+    <!-- PWA / モバイル最適化メタタグ -->
+    <meta name="theme-color" content="var(--color-bg-deep)">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="toast-container" id="toast-container"></div>
+
+<div class="tabs">
+    <button class="tab-btn active" id="tab-chat" onclick="showPage('chat', this)"></button>
+    <button class="tab-btn" id="tab-editor" onclick="showPage('editor', this)"></button>
+    <button class="tab-btn" id="tab-preview" onclick="showPage('preview', this)"></button>
+    <button class="tab-btn" id="tab-settings" onclick="showPage('settings', this)"></button>
+</div>
+
+<div class="content">
+    <div id="p-chat" class="page active">
+        <div class="chat-header">
+            <span class="header-title"></span>
+            <div class="header-actions">
+                <button class="spec-btn" onclick="openSpecModal()"></button>
+                <button class="reset-btn" onclick="confirmReset()"></button>
+            </div>
+        </div>
+
+        <div id="chat-log"></div>
+
+        <div id="floating-generate-container" class="floating-generate-container">
+            <button class="generate-btn" style="box-shadow: 0 4px 12px rgba(16,185,129,0.4);" onclick="generateCode()"></button>
+        </div>
+
+        <div class="input-container">
+            <div id="attach-menu" class="attachment-menu">
+                <div class="menu-item" onclick="triggerFile('camera')"></div>
+                <div class="menu-item" onclick="triggerFile('gallery')"></div>
+                <div class="menu-item" onclick="triggerFile('files')"></div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:10px; padding-bottom:5px;">
+                <img id="file-preview">
+                <span id="file-name-display"></span>
+            </div>
+
+            <div class="input-row">
+                <div class="file-label" onclick="toggleAttachmentMenu()">＋</div>
+                <input type="file" id="file-camera" accept="image/*" capture="environment" style="display:none" onchange="handleAttachment(this)">
+                <input type="file" id="file-gallery" accept="image/*" style="display:none" onchange="handleAttachment(this)">
+                <input type="file" id="file-files" accept="*/*" style="display:none" onchange="handleAttachment(this)">
+                <textarea id="user-prompt" rows="1" oninput="autoGrow(this)"></textarea>
+                <button class="send-btn" id="send-btn" onclick="askAI()"></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="p-editor" class="page">
+         <div class="editor-wrapper">
+            <div class="editor-actions">
+                <button class="action-btn import-btn" onclick="openGitHubImport()"></button>
+                <button class="action-btn upload-btn" onclick="triggerCodeUpload()"></button> 
+                <button class="action-btn search-btn" onclick="openSearchModal()"></button>
+                <button class="action-btn download-btn" onclick="downloadCode()"></button>
+                <button class="action-btn deploy-btn" onclick="openDeployer()"></button>
+            </div>
+            <input type="file" id="code-upload-input" style="display:none" accept=".html,.css,.js,.txt" onchange="handleCodeUpload(this)">
+            <div id="code-editor-container"></div>
+        </div>
+    </div>
+
+    <div id="p-preview" class="page">
+        <iframe id="preview-frame" sandbox="allow-scripts"></iframe>
+        <div class="debug-panel">
+            <textarea id="debug-memo" rows="1" oninput="autoGrow(this)"></textarea>
+            <button class="debug-btn" onclick="sendDebugRequest()"></button>
+        </div>
+    </div>
+
+    <div id="p-settings" class="page settings">
+        <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+            <div class="field" style="flex:0 0 auto; min-width:140px; margin-bottom:0;">
+                <label></label>
+                <select id="ai-provider" class="setting-input" onchange="onProviderChange(); autoSaveSettings();">
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI (GPT)</option>
+                    <option value="claude">Anthropic (Claude)</option>
+                    <option value="xai">xAI (Grok)</option>
+                    <option value="groq">Groq</option>
+                </select>
+            </div>
+            <div class="field" style="flex:1; margin-bottom:0;">
+                <label></label>
+                <select id="chat-model" class="setting-input" onchange="autoSaveSettings()"></select>
+            </div>
+            <div class="field" style="flex:1; margin-bottom:0;">
+                <label></label>
+                <select id="code-model" class="setting-input" onchange="autoSaveSettings()"></select>
+            </div>
+        </div>
+        <div id="api-keys-section">
+            <div class="field api-key-field" data-provider="gemini">
+                <label></label>
+                <input type="password" id="api-key-gemini" class="api-key-input" placeholder="Gemini APIキー" onchange="toggleModelSelects(); autoSaveSettings();">
+            </div>
+            <div class="field api-key-field" data-provider="openai" style="display:none;">
+                <label></label>
+                <input type="password" id="api-key-openai" class="api-key-input" placeholder="sk-..." onchange="toggleModelSelects(); autoSaveSettings();">
+            </div>
+            <div class="field api-key-field" data-provider="claude" style="display:none;">
+                <label></label>
+                <input type="password" id="api-key-claude" class="api-key-input" placeholder="sk-ant-..." onchange="toggleModelSelects(); autoSaveSettings();">
+            </div>
+            <div class="field api-key-field" data-provider="xai" style="display:none;">
+                <label></label>
+                <input type="password" id="api-key-xai" class="api-key-input" placeholder="xai-..." onchange="toggleModelSelects(); autoSaveSettings();">
+            </div>
+            <div class="field api-key-field" data-provider="groq" style="display:none;">
+                <label></label>
+                <input type="password" id="api-key-groq" class="api-key-input" placeholder="gsk_..." onchange="toggleModelSelects(); autoSaveSettings();">
+            </div>
+        </div>
+        <div class="field" style="margin-top:-10px;">
+            <label></label>
+            <div style="font-size:12px; color:var(--color-text-secondary);">🔒 自動暗号化 + 2週間で自動消去</div>
+            <div class="key-status" id="key-expiry-status"></div>
+        </div>
+        <div class="field">
+            <label></label>
+            <input type="password" id="setting-gh-token" placeholder="ghp_..." onchange="autoSaveSettings()">
+        </div>
+        <div class="field">
+            <div class="field-header"><label></label><button class="reset-default-btn" onclick="resetFieldDefault('user-profile')"></button></div>
+            <textarea id="user-profile" class="setting-input" rows="4" onchange="autoSaveSettings()" placeholder=""></textarea>
+        </div>
+        <div class="field">
+            <div class="field-header"><label></label><button class="reset-default-btn" onclick="resetFieldDefault('system-prompt')"></button></div>
+            <textarea id="system-prompt" class="setting-input" rows="3" onchange="autoSaveSettings()"></textarea>
+        </div>
+        <div class="field">
+            <div class="field-header"><label></label><button class="reset-default-btn" onclick="resetFieldDefault('code-principles')"></button></div>
+            <textarea id="code-principles" class="setting-input" rows="3" onchange="autoSaveSettings()"></textarea>
+        </div>
+        <details class="field prompt-details">
+            <summary></summary>
+            <div class="field-header"><label style="font-size:10px;"></label><button class="reset-default-btn" onclick="resetFieldDefault('prompt-plan')"></button></div>
+            <textarea id="prompt-plan" class="setting-input" rows="3" onchange="autoSaveSettings()"></textarea>
+            <div class="field-header"><label style="font-size:10px;"></label><button class="reset-default-btn" onclick="resetFieldDefault('prompt-suggest')"></button></div>
+            <textarea id="prompt-suggest" class="setting-input" rows="2" onchange="autoSaveSettings()"></textarea>
+            <div class="field-header"><label style="font-size:10px;"></label><button class="reset-default-btn" onclick="resetFieldDefault('prompt-debug')"></button></div>
+            <textarea id="prompt-debug" class="setting-input" rows="3" onchange="autoSaveSettings()"></textarea>
+            <div class="field-header"><label style="font-size:10px;"></label><button class="reset-default-btn" onclick="resetFieldDefault('prompt-extract')"></button></div>
+            <textarea id="prompt-extract" class="setting-input" rows="3" onchange="autoSaveSettings()"></textarea>
+            <div class="field-header"><label style="font-size:10px;"></label><button class="reset-default-btn" onclick="resetFieldDefault('prompt-verify')"></button></div>
+            <textarea id="prompt-verify" class="setting-input" rows="3" onchange="autoSaveSettings()"></textarea>
+            <div class="field-header"><label style="font-size:10px;"></label><button class="reset-default-btn" onclick="resetFieldDefault('prompt-extractProfile')"></button></div>
+            <textarea id="prompt-extractProfile" class="setting-input" rows="3" onchange="autoSaveSettings()"></textarea>
+        </details>
+
+        <div class="theme-section">
+            <label></label>
+            <div id="theme-grid" class="theme-grid"></div>
+        </div>
+
+        <div class="template-section">
+            <label></label>
+            <div id="template-grid" class="template-grid"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 仕様・修正リスト モーダル -->
+<div id="spec-modal" class="modal-overlay" onclick="if(event.target===this)closeSpecModal()">
+    <div class="modal">
+        <div class="modal-header">
+            <h3></h3>
+            <button class="modal-close" onclick="closeSpecModal()">✕</button>
+        </div>
+        <div class="modal-body spec-page" style="padding: 12px; display:flex; flex-direction:column; height: 60vh;">
+            <p style="font-size:11px; color:var(--color-text-secondary); margin:0 0 10px 0;"></p>
+            <div id="spec-progress" class="spec-progress" style="display:none;">
+                <span id="spec-progress-text">0/0</span>
+                <div class="spec-progress-bar"><div id="spec-progress-fill" class="spec-progress-fill" style="width:0%"></div></div>
+            </div>
+            <div id="spec-card-view" class="spec-card-list" style="flex:1; overflow-y:auto; overflow-x:hidden; padding-right:4px;"></div>
+            <div id="spec-add-row" class="spec-add-row" style="margin-top:10px;">
+                <input type="text" id="spec-add-input" class="spec-add-input" onkeydown="if(event.key==='Enter')addSpecManual()">
+                <button class="spec-add-btn" onclick="addSpecManual()"></button>
+            </div>
+            <div class="spec-footer" style="margin-top:10px;">
+                <button class="spec-footer-btn" id="spec-restore-btn" onclick="restoreSpecList()" style="display:none;"></button>
+                <button class="spec-footer-btn danger" onclick="clearSpecList()"></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ペルソナ提案 モーダル -->
+<div id="profile-proposal-modal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h3></h3>
+            <button class="modal-close" onclick="closeProfileProposalModal()">✕</button>
+        </div>
+        <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+            <p style="font-size:12px; color:var(--color-text-secondary); margin:0;"></p>
+            <div>
+                <label style="font-size:11px; color:var(--color-text-muted);"></label>
+                <div id="old-profile-text" style="background:var(--color-bg-elevated); padding:10px; border-radius:8px; font-size:12px; color:#aaa; max-height:100px; overflow-y:auto; white-space:pre-wrap;"></div>
+            </div>
+            <div>
+                <label style="font-size:11px; color:var(--primary);"></label>
+                <div id="new-profile-text" style="background:rgba(59,130,246,0.1); border:1px solid var(--primary); padding:10px; border-radius:8px; font-size:12px; color:#fff; max-height:150px; overflow-y:auto; white-space:pre-wrap;"></div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:8px;">
+                <button class="modal-btn" style="background:var(--color-bg-elevated); flex:1; margin-top:0;" onclick="closeProfileProposalModal()"></button>
+                <button class="modal-btn" style="background:var(--success); flex:1; margin-top:0;" onclick="acceptProfileProposal()"></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI質問・選択肢 モーダル -->
+<div id="ai-question-modal" class="modal-overlay" onclick="if(event.target===this)closeAIQuestionModal()">
+    <div class="modal">
+        <div class="modal-header">
+            <h3></h3>
+            <button class="modal-close" onclick="closeAIQuestionModal()">✕</button>
+        </div>
+        <div class="modal-body" style="display:flex; flex-direction:column; gap:16px;">
+            <p id="ai-question-text" style="font-size:13px; color:var(--color-text-primary); margin:0; line-height:1.5;"></p>
+            <div id="ai-question-options" style="display:flex; flex-direction:column; gap:10px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="search-modal" class="modal-overlay" style="background: transparent; pointer-events: none;" onclick="if(event.target===this)closeSearchModal()">
+    <div class="modal" style="pointer-events: auto; position: absolute; top: 60px; right: 15px; width: 300px; margin: 0;">
+        <div class="modal-header" style="padding: 10px 12px;">
+            <h3></h3>
+            <button class="modal-close" onclick="closeSearchModal()" style="font-size: 16px;">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 10px 12px; display: flex; gap: 6px; align-items: center; overflow: visible;">
+            <input type="text" id="code-search-input" class="modal-input" placeholder="Find..." oninput="performCodeSearch()" style="margin: 0; padding: 6px 8px; font-size: 12px; flex: 1;">
+            <span id="search-status" style="font-size: 11px; color: #aaa; min-width: 35px; text-align: center;">0/0</span>
+            <button class="search-nav-btn" style="padding: 6px 10px;" onclick="prevSearchMatch()">▲</button>
+            <button class="search-nav-btn" style="padding: 6px 10px;" onclick="nextSearchMatch()">▼</button>
+        </div>
+    </div>
+</div>
+
+<!-- GitHub Import Modal -->
+<div id="gh-import-modal" class="modal-overlay" onclick="if(event.target===this)closeGitHubImport()">
+    <div class="modal">
+        <div class="modal-header">
+            <h3></h3>
+            <button class="modal-close" onclick="closeGitHubImport()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="gh-step-repo">
+                <input id="gh-repo-search" class="modal-input" oninput="filterImportRepos()">
+                <div id="gh-modal-status" class="modal-status"></div>
+                <ul id="gh-repo-list" class="repo-list"></ul>
+            </div>
+            <div id="gh-step-file" style="display:none">
+                <button class="modal-btn" style="background:var(--color-bg-elevated);margin-bottom:12px;" onclick="backToRepoList()"></button>
+                <div id="gh-file-status" class="modal-status"></div>
+                <ul id="gh-file-list" class="file-list"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GitHub Deploy Modal -->
+<div id="gh-deploy-modal" class="modal-overlay" onclick="if(event.target===this)closeGitHubDeploy()">
+    <div class="modal">
+        <div class="modal-header">
+            <h3></h3>
+            <button class="modal-close" onclick="closeGitHubDeploy()">✕</button>
+        </div>
+        <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+            <div id="deploy-step-token">
+                <input type="password" id="deploy-token-input" class="modal-input">
+                <button class="modal-btn" onclick="saveDeployToken()"></button>
+                <div id="deploy-token-status" class="modal-status"></div>
+            </div>
+            <div id="deploy-step-repo" style="display:none">
+                <button class="modal-btn" style="background:var(--success); margin-bottom:12px;" onclick="showDeployStep('new-repo')"></button>
+                <input id="deploy-repo-search" class="modal-input" oninput="filterDeployRepos()">
+                <div id="deploy-repo-status" class="modal-status"></div>
+                <ul id="deploy-repo-list" class="repo-list"></ul>
+            </div>
+            <div id="deploy-step-new-repo" style="display:none; flex-direction:column; gap:12px;">
+                <button class="modal-btn" style="background:var(--color-bg-elevated); width:auto; align-self:flex-start; margin:0; padding:6px 12px; font-size:11px;" onclick="showDeployStep('repo')"></button>
+                <input id="new-repo-name" class="modal-input">
+                <select id="new-repo-private" class="modal-input" style="appearance:auto; background-image:none;">
+                    <option value="false"></option>
+                    <option value="true"></option>
+                </select>
+                <button class="modal-btn" onclick="createNewRepo()"></button>
+                <div id="new-repo-status" class="modal-status"></div>
+            </div>
+            <div id="deploy-step-details" style="display:none; flex-direction:column; gap:12px;">
+                <button class="modal-btn" style="background:var(--color-bg-elevated); width:auto; align-self:flex-start; margin:0; padding:6px 12px; font-size:11px;" onclick="showDeployStep('repo')"></button>
+                <div style="font-size:13px; color:#fff;"><strong id="deploy-target-repo-name" style="color:var(--primary);"></strong></div>
+                <div style="display:flex; gap:10px;">
+                    <input id="deploy-branch" class="modal-input" value="main">
+                    <input id="deploy-filepath" class="modal-input" value="index.html">
+                </div>
+                <textarea id="deploy-readme-content" class="modal-input" rows="4"></textarea>
+                <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:#fff; cursor:pointer;">
+                    <input type="checkbox" id="deploy-gh-pages" checked style="accent-color:var(--primary); width:16px; height:16px;"> <span></span>
+                </label>
+                <button class="modal-btn" id="deploy-exec-btn" onclick="executeDeploy()" style="background:var(--accent);"></button>
+                <div id="deploy-execute-status" class="modal-status"></div>
+            </div>
+            <div id="deploy-step-success" style="display:none; flex-direction:column; gap:12px;">
+                <h4 style="font-size:16px; color:var(--success); margin:0;"></h4>
+                <div id="gh-pages-countdown-display" style="font-size:14px; color:var(--color-text-secondary);"></div>
+                <div style="font-size:13px; color:#fff;"><a id="deploy-success-url" href="#" target="_blank" style="color:var(--primary); word-break:break-all;"></a></div>
+                <button class="modal-btn" id="view-site-btn" onclick="openDeployedSite()" style="background:var(--primary); margin-top:10px;" disabled></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="bg-notify" class="bg-notify">
+    <div class="spinner" style="width:14px;height:14px;border-width:2px;margin:0"></div>
+    <span></span>
+</div>
+
+<div id="theme-editor-modal" class="modal-overlay" onclick="if(event.target===this)closeThemeEditor()">
+    <div class="modal" style="max-width:440px;">
+        <div class="modal-header"><h3 id="theme-editor-title"></h3><button class="modal-close" onclick="closeThemeEditor()">✕</button></div>
+        <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; gap:10px;"><input id="te-name" class="modal-input" style="flex:1;"><input id="te-icon" class="modal-input" style="width:70px;"></div>
+            <input id="te-desc" class="modal-input">
+            <div class="theme-editor-grid" id="te-colors" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;"></div>
+            <div class="theme-preview-bar" id="te-preview-bar" style="display:flex; border-radius:8px; overflow:hidden; height:32px; border:1px solid var(--color-border);"></div>
+            <div style="display:flex; gap:8px;">
+                <button class="modal-btn" onclick="saveThemeFromEditor()" style="flex:1;"></button>
+                <button class="modal-btn" onclick="injectThemeToCode()" style="flex:1; background:var(--success);"></button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="tpl-editor-modal" class="modal-overlay" onclick="if(event.target===this)closeTemplateEditor()">
+    <div class="modal" style="max-width:500px;">
+        <div class="modal-header"><h3 id="tpl-editor-title"></h3><button class="modal-close" onclick="closeTemplateEditor()">✕</button></div>
+        <div class="modal-body" style="display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; gap:10px;"><input id="tple-name" class="modal-input" style="flex:1;"><input id="tple-icon" class="modal-input" style="width:70px;"></div>
+            <input id="tple-desc" class="modal-input">
+            <textarea id="tple-code" class="modal-input" rows="8"></textarea>
+            <div style="display:flex; gap:8px;">
+                <button class="modal-btn" onclick="triggerTplFileUpload()" style="flex:0; background:var(--color-bg-elevated); width:auto;"></button>
+                <input type="file" id="tpl-file-input" accept=".html" style="display:none" onchange="handleTplFileUpload(this)">
+                <button class="modal-btn" onclick="saveCustomTemplate()" style="flex:1;"></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JS モジュール読込（順序重要） -->
+<script src="js/config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/ui-labels.js"></script>
+<script src="js/specs.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/codegen.js"></script>
+<script src="js/github.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
