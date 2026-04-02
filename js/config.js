@@ -79,7 +79,7 @@ async function loadPrompts() {
             toastCodeMissing: "コードがありません", toastDownloadStarted: "ダウンロード開始",
             toastThemeSaved: "保存しました", toastThemeApplied: "反映しました",
             toastTemplateSaved: "保存しました", tabButtonResetConfirm: "リセットしますか？",
-            tabButtonOverwriteConfirm: "上書きしますか？", tokenNotSetAlert: "トークン未設定",
+            tabButtonOverwriteConfirm: "上書きしますか？", tokenNotSetAlert: "GitHubトークンが設定されていません。",
             ghImportModalTitle: "📥 GitHub Import", ghRepoSearchPlaceholder: "リポジトリを検索...",
             ghLoading: "読込中...", ghError: "エラー", ghFilePrefix: "📄", ghBackToRepos: "← 戻る",
             ghDeployModalTitle: "🚀 GitHub Deploy", deployTokenInputPlaceholder: "ghp_...",
@@ -123,6 +123,21 @@ async function loadPrompts() {
             keyExpiryStatusExpired: "期限切れです",
             keyExpiryStatusRemaining: "残り{remaining}日で自動消去されます",
             aiSystemMsgInterrupted: "⚠️ 中断されました。",
+
+            // § デプロイ進行ステータス (github.js 要件1)
+            deployingTokenCheck   : "GitHubトークンの有効性を確認中...",
+            deployingPrepareFiles : "デプロイファイルを準備中...",
+            deployingMainFile     : "メインファイルをアップロード中...",
+            deployingReadmeFile   : "READMEファイルを更新中...",
+            deployingGhPages      : "GitHub Pagesを有効化中...",
+
+            // § エラーメッセージ (github.js 要件2)
+            deployMainFileError   : "メインファイルのアップロードに失敗しました。",
+            deployReadmeFileError : "READMEファイルの更新に失敗しました。",
+            networkError          : "ネットワーク接続に問題があるようです。インターネット接続を確認してください。",
+
+            // § トークン検証 (github.js 要件3)
+            tokenInvalidAlert     : "GitHubトークンが無効か、必要な権限がありません。設定を確認してください。",
         }
     };
 
